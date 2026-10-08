@@ -13,6 +13,13 @@ Plugin ownership of the deprecated built-in subscriptions is in
 [Provider and plugin ownership](provider-plugins.md). How the gateway orders
 keys and accounts per request is in [Gateway routing and fallback](gateway-routing.md).
 
+Poe is a key-based relay preset in [`presets.go`](../../internal/provider/presets.go).
+Its official Chat Completions and Responses APIs use `https://api.poe.com/v1`;
+its Anthropic-compatible API uses `https://api.poe.com`. Model discovery reads
+Poe's `/v1/models`, including each model's `supported_endpoints`, so Messages
+is offered only where Poe lists it. It uses the normal provider path, with no
+plugin or separate sign-in.
+
 ## Responsibilities and sources of truth
 
 | Part | Responsibility | Source |

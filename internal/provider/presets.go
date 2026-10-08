@@ -359,6 +359,9 @@ var presets = []PresetDef{
 		Website: "https://openrouter.ai", KeysURL: "https://openrouter.ai/keys",
 		// app attribution, for OpenRouter's rankings and analytics
 		HeaderHints: []string{"HTTP-Referer", "X-OpenRouter-Title"}},
+	{ID: "poe", Name: "Poe", Icon: "poe", Kind: KindRelay,
+		Chat: "https://api.poe.com/v1", Responses: "https://api.poe.com/v1", Anthropic: "https://api.poe.com",
+		Website: "https://creator.poe.com/docs/external-applications/openai-compatible-api", KeysURL: "https://poe.com/api/keys"},
 	{ID: "opencode-go", Name: "OpenCode Go", Icon: "opencode", Kind: KindRelay, Catalog: "opencode-go",
 		Chat: "https://opencode.ai/zen/go/v1", Responses: "https://opencode.ai/zen/go/v1", Anthropic: "https://opencode.ai/zen/go",
 		Note:    "open coding models, $10/month",
