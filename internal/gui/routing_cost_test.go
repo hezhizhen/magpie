@@ -33,6 +33,7 @@ func TestRoutingEffectiveCosts(t *testing.T) {
 		}},
 		{ID: 2, Usage: []gateway.RouteUsage{{Provider: "free", Model: "m", Input: 1000}}},
 		{ID: 3, Tokens: 1000}, // old history: no token tiers, price unknown
+		{ID: 4, Usage: []gateway.RouteUsage{{Provider: "relay", Model: "m", CacheRead: 1_000_000}}},
 	}
 	got := pricedRoutes(routes)
 	if !got[0].Priced || math.Abs(got[0].Cost-0.0153) > 1e-12 {
@@ -43,6 +44,9 @@ func TestRoutingEffectiveCosts(t *testing.T) {
 	}
 	if got[2].Priced {
 		t.Fatalf("old history treated as free: %+v", got[2])
+	}
+	if !got[3].Priced || got[3].Cost != 0.5 {
+		t.Fatalf("cache-only route: %+v", got[3])
 	}
 	save(4)
 	if updated := pricedRoutes(routes)[0]; math.Abs(updated.Cost-0.0213) > 1e-12 {
@@ -60,7 +64,7 @@ func TestRoutingEffectiveCosts(t *testing.T) {
 	if err := json.Unmarshal(b, &decoded); err != nil {
 		t.Fatal(err)
 	}
-	if decoded.Seq != 1 || len(decoded.Routes) != 3 || !decoded.Routes[0].Priced || decoded.Routes[0].Session != "conversation" || decoded.Routes[0].ParentSession != "parent-conversation" {
+	if decoded.Seq != 1 || len(decoded.Routes) != 4 || !decoded.Routes[0].Priced || decoded.Routes[0].Session != "conversation" || decoded.Routes[0].ParentSession != "parent-conversation" {
 		t.Fatalf("API response %s", b)
 	}
 }

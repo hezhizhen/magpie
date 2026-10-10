@@ -42,6 +42,14 @@ served by a plugin are in [Provider and plugin ownership](provider-plugins.md).
 
 ## Constraints and failure behavior
 
+- Gateway key cost limits use the Usage page's effective prices, including
+  cache traffic recorded before a request fails or without uncached input and
+  output. Whether the key counts cache reads toward its token limit does not
+  change that cost.
+  Routing retains the same cache-only token tiers for pricing. Implementation:
+  [`internal/budget/budget.go`](../../internal/budget/budget.go), `NewCoster` in
+  [`internal/usage/ledger.go`](../../internal/usage/ledger.go), and `routeUsage` in
+  [`internal/gateway/trace.go`](../../internal/gateway/trace.go).
 - A fallback happens only while none of the reply has been sent. An agent never gets half a reply from one upstream and the rest from another.
 - A request whose key is a Claude sign-in (`claudeSignIn`: `Authorization: Bearer sk-ant-oat…`, Claude Code signed in to claude.ai with magpie as its base URL) is never told a 401, nor a 403 saying "OAuth token has been revoked". magpie never passes that sign-in on, so such an answer is a provider refusing magpie's credential, or one of magpie's own Claude accounts lapsing; told it, Claude Code renews its own sign-in before each of its retries (ten for one request) and then asks to `/login`. Any error whose message mentions x-api-key, whatever its status, Claude Code tells as "Not logged in · Please run /login" too. It is told as a 502 in magpie's words, an `api_error` saying "<provider> refused magpie's credential (HTTP 401): …" with x-api-key said as "API key", and any other error such a request is told keeps its status with x-api-key said as "API key", as does a stream's error after its 200 (`keepsSignIn`, `claude_signin.go`). Recent calls and the usage log keep the provider's status and message. Any other 403, and a request with magpie's key or an API key, is answered as before. The sign-in's beta (`oauth-…` in `anthropic-beta`) isn't passed on either (`askedBetas`), so a provider gets the request as Claude Code with magpie's key sends it; a provider's own `header.anthropic-beta` still goes.
 - A 2xx that can't be an API's answer is the 502 it stands for (`notAnAPIReply`, #1012): a web page (`text/html`, or a body that begins as one: a sign-in page, Cloudflare's challenge), a body with nothing in it, or one sent as JSON that doesn't begin as JSON. Every upstream request goes through it (`forwardOnce`, and the built-in clients' own: the ChatGPT backend's `/responses`, Kiro, Zed, Qoder, Devin, Cursor, Command Code), so it fails over, rests and is logged as a 502 does, its reason naming the page's title. Only the first bytes are peeked, which a stream waits for anyway, and a compressed body is left as it came.

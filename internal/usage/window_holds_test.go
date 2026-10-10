@@ -157,6 +157,21 @@ func TestWindowHoldsNeedsTheWholeWindowLogged(t *testing.T) {
 	}
 }
 
+func TestWindowHoldsCountsCacheOnlyCalls(t *testing.T) {
+	holdsHome(t)
+	now := holdClock(t, time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC))
+	Append(Record{Time: now.Add(-24 * time.Hour), Provider: "claude"}) // log reaches before the window
+	Append(Record{Time: now.Add(-time.Hour), Provider: "claude", ProviderAccount: "dee@example.com", Model: "claude-opus-4-7", CacheRead: 1_000_000, Status: 529})
+	reset := now.Add(time.Hour)
+	qs := []provider.SubscriptionQuota{{Provider: "claude", User: "dee@example.com", Windows: []provider.QuotaWindow{
+		{Name: "5 hours", Used: 20, ResetsAt: &reset, Span: 5 * time.Hour},
+	}}}
+	h := WithWindowHolds(qs, now)[0].Windows[0].Holds
+	if h == nil || !h.Priced || h.Cost != 2.5 || h.Routed.Cost != 0.5 || h.Routed.Calls != 1 || h.Routed.CacheRead != 1_000_000 || h.Tokens != 0 {
+		t.Fatalf("cache-only window: %+v, want $2.5 from $0.5 in one cached call", h)
+	}
+}
+
 // A month's window began on the same day a month before its reset, not 30
 // days before: Kiro's credits reset on the 1st.
 func TestWindowBoundsOfAMonth(t *testing.T) {

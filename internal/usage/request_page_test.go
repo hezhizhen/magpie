@@ -109,7 +109,7 @@ func TestCompactPageMatchesLedger(t *testing.T) {
 	price := pricer()
 	pack := func(r Record, source string) Row {
 		x := Row{Record: r, Source: source, Swapped: r.Served != "" && Swapped(r.Model, r.Served)}
-		if p := price(r); p != nil && r.Input+r.Output > 0 {
+		if p := price(r); p != nil && r.Input+r.Output+r.CacheRead+r.CacheWrite > 0 {
 			x.Cost = p.Cost(r.Input, r.Output, r.CacheRead, r.CacheWrite)
 			x.Priced = true
 		}

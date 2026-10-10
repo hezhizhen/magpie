@@ -96,7 +96,7 @@ func windowHolds(qs []provider.SubscriptionQuota, now, first time.Time, priceOf 
 	sums := map[slot]*provider.WindowHolds{}
 	unpriced := map[slot]bool{}
 	read(func(r Record) {
-		if r.IsRejected() || r.Input+r.Output == 0 {
+		if r.IsRejected() || !r.hasTokens() {
 			return
 		}
 		if next, ok := renamed[r.Provider]; ok {
@@ -130,9 +130,6 @@ func windowHolds(qs []provider.SubscriptionQuota, now, first time.Time, priceOf 
 	copy(out, qs)
 	cloned := map[int]bool{}
 	for s, h := range sums {
-		if h.Routed.Tokens <= 0 {
-			continue
-		}
 		q := &out[s.q]
 		if !cloned[s.q] { // the caller's windows are left as they are
 			q.Windows, cloned[s.q] = append([]provider.QuotaWindow(nil), q.Windows...), true

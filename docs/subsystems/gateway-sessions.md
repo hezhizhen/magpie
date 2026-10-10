@@ -24,6 +24,9 @@ text magpie recorded of them (`sessions.GatewaySizes`), shown only when there
 is some. Their
 models, token totals, start/last timestamps and effective prices come from the
 same usage records used by Usage and stats endpoints.
+Cache reads and writes are priced even when uncached input and output are
+zero, including the usage reported before a request fails. A cache-only call
+with no known price is unpriced; it is not treated as a known zero cost.
 
 A gateway projection can be deleted (lc on Discord). `sessions.DeleteGateway`
 moves its recorded text folders (`gateway-conversations/<date>/<identity hash>`)

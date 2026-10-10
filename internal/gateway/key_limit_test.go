@@ -56,6 +56,60 @@ func pinLimitClock(t *testing.T) time.Time {
 	return at
 }
 
+// A stream can fail after the vendor reads its cache, before reporting
+// any uncached input or output. That charge still spends the key's limit.
+func TestKeyLimitCountsCacheOnlyFailure(t *testing.T) {
+	fresh(t)
+	budget.Forget()
+	now := pinLimitClock(t)
+	var calls atomic.Int64
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		io.WriteString(w, "event: message_start\ndata: "+`{"type":"message_start","message":{"id":"cached","type":"message","role":"assistant","model":"m1","content":[],"usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":1000000}}}`+"\n\n")
+		io.WriteString(w, "event: error\ndata: "+`{"type":"error","error":{"type":"overloaded_error","message":"interrupted after reading the cache"}}`+"\n\n")
+	}))
+	t.Cleanup(up.Close)
+	if err := provider.Save(provider.Provider{ID: "cache", Name: "Cache", Key: "test", Anthropic: up.URL + "/v1", Models: []string{"m1"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := settings.Save(settings.Settings{ModelPrices: map[string]settings.ModelPrice{
+		"cache/m1": {Input: new(2.0), Output: new(4.0), CacheRead: new(0.5), CacheWrite: new(1.0)},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	keys, secrets := newCaller(t, "Cached failure")
+	limit := &access.Limit{Period: "day", Cost: 0.25}
+	setLimit(t, keys[0].ID, limit)
+	s := New()
+	h := s.Handler()
+	call := func() *httptest.ResponseRecorder {
+		r := httptest.NewRequest("POST", "/v1/messages", strings.NewReader(`{"model":"cache/m1","stream":true,"max_tokens":100,"messages":[{"role":"user","content":"hello"}]}`))
+		r.Header.Set("Authorization", "Bearer "+secrets[0])
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+	w := call()
+	sent := calls.Load()
+	recs := usage.Load(time.Time{})
+	if len(recs) != 1 || !recs[0].Failed() || recs[0].CacheRead != 1_000_000 || recs[0].Input != 0 || recs[0].Output != 0 {
+		t.Fatalf("cache-only failed call not recorded: %+v; response=%d %s", recs, w.Code, w.Body.String())
+	}
+	st := budget.Of(access.Key{ID: keys[0].ID, Name: keys[0].Name, Limit: limit}, now)
+	if st.Cost != 0.5 || !st.Spent {
+		t.Errorf("cache charge did not spend the limit: %+v", st)
+	}
+	if routes := s.Trace(t.Context(), 0, 0).Routes; len(routes) != 1 || len(routes[0].Usage) == 0 || routes[0].Usage[0].CacheRead != 1_000_000 {
+		t.Errorf("routing lost the cache charge: %+v", routes)
+	}
+	// Reloading the budget from the ledger must preserve the charge too.
+	budget.Forget()
+	if w := call(); w.Code != http.StatusTooManyRequests || calls.Load() != sent {
+		t.Fatalf("spent key reached upstream again: status=%d calls=%d body=%s", w.Code, calls.Load(), w.Body.String())
+	}
+}
+
 // A key past its limit is refused before any provider is asked, with a
 // 429 that names the key, the limit and when it resets; another key and a
 // keyless request from this computer go on; what was used survives a

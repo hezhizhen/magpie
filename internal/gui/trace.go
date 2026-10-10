@@ -101,7 +101,7 @@ func pricedRoutes(routes []gateway.Route) []routeJSON {
 		}
 		sum := priceOf(recs)
 		// Old history and calls without token counts stay unknown, not free.
-		priced := sum.Calls > sum.Unpriced && sum.Input+sum.Output > 0
+		priced := sum.Calls > sum.Unpriced && sum.AllTokens() > 0
 		name := ""
 		if r.Agent == "codex" {
 			id := r.Session

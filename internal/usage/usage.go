@@ -269,6 +269,9 @@ func (r Record) CostAt(p catalog.Price) float64 {
 	return p.CostSplit(r.Input, r.Output, r.CacheRead, r.CacheWrite, r.CacheWrite1h)
 }
 
+// hasTokens includes cache traffic. CacheWrite1h is already part of CacheWrite.
+func (r Record) hasTokens() bool { return r.Input+r.Output+r.CacheRead+r.CacheWrite > 0 }
+
 // Totals is a sum of calls.
 type Totals struct {
 	Calls      int `json:"calls"`
@@ -450,7 +453,7 @@ func (t *Totals) add(r Record, price *catalog.Price) {
 			t.DecodeOut += n
 		}
 	}
-	if r.Input+r.Output == 0 {
+	if !r.hasTokens() {
 		return
 	}
 	if price == nil {

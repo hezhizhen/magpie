@@ -205,7 +205,7 @@ func buildGatewaySessions(snapshot *logSnapshot, since time.Time, nativeKeys map
 		}
 		p := priceOf(r)
 		cost, priced := 0.0, true
-		if r.Input+r.Output > 0 {
+		if r.hasTokens() {
 			if p == nil {
 				priced = false
 			} else {
@@ -253,7 +253,7 @@ func buildGatewaySessions(snapshot *logSnapshot, since time.Time, nativeKeys map
 		for _, m := range models[k] {
 			s.Models = append(s.Models, *m)
 			s.Cost += m.Cost
-			if !m.Priced && m.Input+m.Output > 0 {
+			if !m.Priced {
 				s.Unpriced++
 			}
 		}
@@ -297,7 +297,7 @@ func (m *GatewayModel) addRecord(r Record, p *catalog.Price) {
 	m.CacheRead += r.CacheRead
 	m.CacheWrite += r.CacheWrite
 	m.CacheWrite1h += r.CacheWrite1h
-	if r.Input+r.Output == 0 {
+	if !r.hasTokens() {
 		return
 	}
 	if p == nil {

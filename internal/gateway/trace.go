@@ -492,7 +492,7 @@ func swapped(sent, served string) bool { return usage.Swapped(sent, served) }
 // routeUsage retains only what pricing needs, without another copy of the
 // request's metadata. Unknown token counts have no price, including failures.
 func routeUsage(id, model string, u Usage) []RouteUsage {
-	if u.Input+u.Output == 0 {
+	if u.Input+u.Output+u.CacheRead+u.CacheWrite == 0 {
 		return nil
 	}
 	return []RouteUsage{{Provider: id, Model: model, Input: u.Input, Output: u.Output,

@@ -79,7 +79,7 @@ func heatmapOf(since, now time.Time, visit func(add func(Row))) *Heatmap {
 		switch {
 		case r.Priced:
 			x.Cost += r.Cost
-		case r.Input+r.Output > 0:
+		case r.hasTokens():
 			x.Unpriced++
 		}
 	})
